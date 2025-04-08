@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="container mt-4">
+    <h2>ORCRIMs</h2>
+    <a href="{% url 'orcrim_create' %}" class="btn btn-success mb-3">Nova ORCRIM</a>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Descrição</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for orcrim in orcrims %}
+          <tr>
+            <td>{{ orcrim.descricao }}</td>
+            <td>
+              <a href="{% url 'orcrim_update' orcrim.pk %}" class="btn btn-primary btn-sm">Editar</a>
+              <a href="{% url 'orcrim_delete' orcrim.pk %}" class="btn btn-danger btn-sm">Excluir</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="2">Nenhuma ORCRIM cadastrada.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
