@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Dashboard Interativo</h2>
+
+    <form id="filtros" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="data_inicio" class="form-label">Data Início</label>
+            <input type="date" class="form-control" id="data_inicio" name="data_inicio">
+        </div>
+        <div class="col-md-3">
+            <label for="data_fim" class="form-label">Data Fim</label>
+            <input type="date" class="form-control" id="data_fim" name="data_fim">
+        </div>
+        <div class="col-md-3">
+            <label for="sexo" class="form-label">Sexo</label>
+            <select id="sexo" name="sexo" class="form-select">
+                <option value="">Todos</option>
+                {% for s in sexos %}
+                <option value="{{ s.id }}">{{ s.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="tipo" class="form-label">Tipo</label>
+            <select id="tipo" name="tipo" class="form-select">
+                <option value="">Todos</option>
+                {% for t in tipos %}
+                <option value="{{ t.id }}">{{ t.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <div class="row">
+        <div class="col-md-6">
+            <canvas id="graficoMes"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="graficoSexo"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let graficoMes, graficoSexo;
+
+function carregarGraficos() {
+    const formData = new FormData(document.getElementById('filtros'));
+    const params = new URLSearchParams(formData);
+
+    fetch(`/ocorrencias/dashboard/dados/?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            const meses = data.por_mes.map(item => item.mes.slice(0, 7));
+            const totaisMes = data.por_mes.map(item => item.total);
+
+            const sexos = data.por_sexo.map(item => item.sexo__nome);
+            const totaisSexo = data.por_sexo.map(item => item.total);
+
+            if (graficoMes) graficoMes.destroy();
+            graficoMes = new Chart(document.getElementById('graficoMes'), {
+                type: 'bar',
+                data: {
+                    labels: meses,
+                    datasets: [{
+                        label: 'Ocorrências por Mês',
+                        data: totaisMes,
+                        backgroundColor: '#3b82f6'
+                    }]
+                }
+            });
+
+            if (graficoSexo) graficoSexo.destroy();
+            graficoSexo = new Chart(document.getElementById('graficoSexo'), {
+                type: 'pie',
+                data: {
+                    labels: sexos,
+                    datasets: [{
+                        label: 'Ocorrências por Sexo',
+                        data: totaisSexo,
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                    }]
+                }
+            });
+        });
+}
+
+document.getElementById('filtros').addEventListener('change', carregarGraficos);
+window.onload = carregarGraficos;
+</script>
+{% endblock %}

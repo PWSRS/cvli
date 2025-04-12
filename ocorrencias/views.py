@@ -1,21 +1,21 @@
-
 from django.contrib import messages
 from django.views import View
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from django.db.models import Count
+from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
-from .models import Ocorrencia, SituacaoCarceraria,LocalObito,Tipo, Cidade, Orcrim, CausaFato, MeioEmpregado, Sexo, FaixaEtaria, Mes, Intervalo,DiaSemana, CorPele, TráficoPosse, Turno
+from .models import Ocorrencia, SituacaoCarceraria,LocalObito,Tipo, Cidade, Orcrim, CausaFato, MeioEmpregado, Sexo, FaixaEtaria, Mes, Intervalo,DiaSemana, CorPele, TraficoPosse, Turno
 from .forms import OcorrenciaForm, TipoForm, CidadeForm, OrcrimForm, CausaFatoForm, MeioEmpregadoForm
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 import pandas as pd
 from datetime import datetime
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm
-
-
-
+from django.template.loader import render_to_string
+from django.db.models import Q, F
+from django.db.models.functions import TruncMonth
+from django.utils.dateparse import parse_date
 
 def register(request):
     if request.method == 'POST':
@@ -54,7 +54,7 @@ class ImportarDadosView(LoginRequiredMixin, View):
                 tipo = Tipo.objects.get_or_create(nome=row['Tipo'])[0]
                 cor_pele = CorPele.objects.get_or_create(descricao=row['Cor de pele'])[0]
                 causa_fato = CausaFato.objects.get_or_create(descricao=row['Causa do fato'])[0]
-                trafico_posse = TráficoPosse.objects.get_or_create(descricao=row['Tráfico/Posse'])[0]
+                trafico_posse = TraficoPosse.objects.get_or_create(descricao=row['Tráfico/Posse'])[0]
                 orcrim = Orcrim.objects.get_or_create(descricao=row['ORCRIM'])[0]
                 meio_empregado = MeioEmpregado.objects.get_or_create(descricao=row['Meio empregado'])[0]
                 local_obito = LocalObito.objects.get_or_create(descricao=row['Local do óbito'])[0]
@@ -176,13 +176,39 @@ class ExportarDadosView(LoginRequiredMixin,View):
         return response
 
 # Ocorrências
-class OcorrenciaListView(LoginRequiredMixin,ListView):
+class OcorrenciaAjaxListView(View):
+    def get(self, request, *args, **kwargs):
+        query = request.GET.get("q", "").strip()
+
+        # Filtra pelo campo "nome" (case insensitive)
+        if query:
+            ocorrencias = Ocorrencia.objects.filter(nome__icontains=query)
+        else:
+            ocorrencias = Ocorrencia.objects.all()
+
+        html = render_to_string("ocorrencias/ocorrencia_tabela_parcial.html", {
+            "ocorrencias": ocorrencias
+        })
+
+        return JsonResponse({"html": html})
+
+
+class OcorrenciaListView(LoginRequiredMixin, ListView):
     model = Ocorrencia
     template_name = 'ocorrencias/ocorrencia_list.html'
     context_object_name = 'ocorrencias'
     paginate_by = 10
-    ordering = ['-id']
+    ordering = ['-data_fato']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get('q')
+
+        if query:
+            queryset = queryset.filter(nome__icontains=query)
+
+        return queryset
+    
 class OcorrenciaCreateView(LoginRequiredMixin,CreateView):
     model = Ocorrencia
     form_class = OcorrenciaForm
@@ -211,6 +237,7 @@ class TipoListView(LoginRequiredMixin,ListView):
     model = Tipo
     template_name = 'ocorrencias/tipo_list.html'
     context_object_name = 'tipos'
+    ordering = ['nome']
 
 class TipoCreateView(LoginRequiredMixin,CreateView):
     model = Tipo
@@ -235,6 +262,7 @@ class CidadeListView(LoginRequiredMixin,ListView):
     model = Cidade
     template_name = 'ocorrencias/cidade_list.html'
     context_object_name = 'cidades'
+    ordering = ['nome']
 
 class CidadeCreateView(LoginRequiredMixin,CreateView):
     model = Cidade
@@ -258,6 +286,7 @@ class OrcrimListView(LoginRequiredMixin,ListView):
     model = Orcrim
     template_name = 'ocorrencias/orcrim_list.html'
     context_object_name = 'orcrims'
+    ordering = ['descricao']
 
 class OrcrimCreateView(LoginRequiredMixin,CreateView):
     model = Orcrim
@@ -281,6 +310,7 @@ class CausaFatoListView(LoginRequiredMixin,ListView):
     model = CausaFato
     template_name = 'ocorrencias/causafato_list.html'
     context_object_name = 'causas'
+    ordering = ['descricao']
 
 class CausaFatoCreateView(LoginRequiredMixin,CreateView):
     model = CausaFato
@@ -304,6 +334,8 @@ class MeioEmpregadoListView(LoginRequiredMixin,ListView):
     model = MeioEmpregado
     template_name = 'ocorrencias/meioempregado_list.html'
     context_object_name = 'meios'
+    ordering = ['descricao']
+    
 
 class MeioEmpregadoCreateView(LoginRequiredMixin,CreateView):
     model = MeioEmpregado
@@ -321,3 +353,190 @@ class MeioEmpregadoDeleteView(LoginRequiredMixin,DeleteView):
     model = MeioEmpregado
     template_name = 'ocorrencias/meioempregado_confirm_delete.html'
     success_url = reverse_lazy('meioempregado_list')
+    
+# CRIAÇÃO DE GRÁFICOS
+def dashboard(request):
+    dados_por_mes = Ocorrencia.objects.values('mes__nome').annotate(qtd=Count('id')).order_by('mes__nome')
+    dados_por_sexo = Ocorrencia.objects.values('sexo__nome').annotate(qtd=Count('id'))
+
+    return render(request, 'ocorrencias/dashboard.html', {
+        'dados_mes': list(dados_por_mes),
+        'dados_sexo': list(dados_por_sexo),
+    })
+
+    
+def grafico_ocorrencias_por_mes(request):
+    dados = (
+        Ocorrencia.objects
+        .values('mes__id', 'mes__nome')  # agrupando pelo ID e nome
+        .annotate(total=Count('id'))
+        .order_by('mes__id')  # aqui está a mágica
+    )
+
+    labels = [item['mes__nome'] for item in dados]
+    valores = [item['total'] for item in dados]
+
+    return JsonResponse({
+        'labels': labels,
+        'valores': valores
+    })
+    
+def dados_por_mes(request):
+    dados = Ocorrencia.objects.values('mes').annotate(total=Count('id'))
+    # Aqui ele traz dados como [{'mes': 'Março', 'total': 5}, {'mes': 'Janeiro', 'total': 3}]
+
+    # Ordem correta dos meses
+    ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+    # Converter para dicionário
+    dados_dict = {item['mes']: item['total'] for item in dados}
+
+    labels = []
+    valores = []
+
+    for mes in ordem_meses:
+        if mes in dados_dict:
+            labels.append(mes)
+            valores.append(dados_dict[mes])
+
+    return JsonResponse({
+        'labels': labels,
+        'valores': valores
+    })
+    
+    
+def dados_por_tipo(request):
+    dados = Ocorrencia.objects.values('tipo__nome').annotate(total=Count('id'))
+
+    labels = [item['tipo__nome'] for item in dados]
+    valores = [item['total'] for item in dados]
+
+    return JsonResponse({
+        'labels': labels,
+        'valores': valores
+    })
+    
+def dados_por_tipo(request):
+    ocorrencias = Ocorrencia.objects.all()
+
+    # Filtros
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    sexo = request.GET.get('sexo')
+    idade = request.GET.get('idade')
+    tipo = request.GET.get('tipo')
+
+    if data_inicio:
+        ocorrencias = ocorrencias.filter(data_fato__gte=parse_date(data_inicio))
+    if data_fim:
+        ocorrencias = ocorrencias.filter(data_fato__lte=parse_date(data_fim))
+    if sexo:
+        ocorrencias = ocorrencias.filter(sexo__nome=sexo)
+    if tipo:
+        ocorrencias = ocorrencias.filter(tipo_id=tipo)
+    if idade:
+        faixa = idade.split('-')
+        if faixa[-1] == '+':
+            ocorrencias = ocorrencias.filter(idade__gte=int(faixa[0]))
+        else:
+            ocorrencias = ocorrencias.filter(idade__gte=int(faixa[0]), idade__lte=int(faixa[1]))
+
+    # Gráfico por mês
+    meses = (
+        ocorrencias
+        .annotate(mes_truncado=TruncMonth('data'))
+        .values('mes_truncado')
+        .annotate(total=Count('id'))
+        .order_by('mes_truncado')
+    )
+    meses_labels = [m['mes'].strftime('%b/%Y') for m in meses]
+    meses_data = [m['total'] for m in meses]
+
+    # Gráfico por sexo
+    sexo_qs = (
+        ocorrencias
+        .values('sexo__nome')
+        .annotate(total=Count('id'))
+        .order_by('sexo__nome')
+    )
+    sexo_labels = [s['sexo__nome'] for s in sexo_qs]
+    sexo_data = [s['total'] for s in sexo_qs]
+
+    # Gráfico por idade
+    faixas = {
+        '0-18': (0, 18),
+        '19-30': (19, 30),
+        '31-45': (31, 45),
+        '46-60': (46, 60),
+        '61+': (61, 150),
+    }
+    idade_labels = []
+    idade_data = []
+    for faixa_label, (min_idade, max_idade) in faixas.items():
+        count = ocorrencias.filter(idade__gte=min_idade, idade__lte=max_idade).count()
+        idade_labels.append(faixa_label)
+        idade_data.append(count)
+
+    # Gráfico por cidade
+    cidade_qs = (
+        ocorrencias
+        .values('cidade__nome')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:10]
+    )
+    cidade_labels = [c['cidade__nome'] for c in cidade_qs]
+    cidade_data = [c['total'] for c in cidade_qs]
+
+    return JsonResponse({
+        'meses': {'labels': meses_labels, 'data': meses_data},
+        'sexo': {'labels': sexo_labels, 'data': sexo_data},
+        'idade': {'labels': idade_labels, 'data': idade_data},
+        'cidade': {'labels': cidade_labels, 'data': cidade_data},
+    })
+    
+def dashboard_dados(request):
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    sexo = request.GET.get('sexo')
+    tipo = request.GET.get('tipo')
+
+    ocorrencias = Ocorrencia.objects.all()
+
+    if data_inicio:
+        ocorrencias = ocorrencias.filter(data__gte=data_inicio)
+    if data_fim:
+        ocorrencias = ocorrencias.filter(data__lte=data_fim)
+    if sexo:
+        ocorrencias = ocorrencias.filter(sexo_id=sexo)
+    if tipo:
+        ocorrencias = ocorrencias.filter(tipo_id=tipo)
+
+    por_mes = (
+        ocorrencias
+        .annotate(mes=TruncMonth('data'))
+        .values('mes')
+        .annotate(total=Count('id'))
+        .order_by('mes')
+    )
+
+    por_sexo = (
+        ocorrencias
+        .values('sexo__nome')
+        .annotate(total=Count('id'))
+        .order_by('sexo__nome')
+    )
+
+    return JsonResponse({
+        'por_mes': list(por_mes),
+        'por_sexo': list(por_sexo),
+    })
+
+
+def dashboard(request):
+    sexos = Sexo.objects.all()
+    tipos = Tipo.objects.all()
+    return render(request, 'ocorrencias/dashboard.html', {
+        'sexos': sexos,
+        'tipos': tipos
+    })

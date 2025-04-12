@@ -12,7 +12,7 @@ from .models import (
     CorPele,
     SituacaoCarceraria,
     CausaFato,
-    TráficoPosse,
+    TraficoPosse,
     Orcrim,
     MeioEmpregado
 )
@@ -24,11 +24,39 @@ class OcorrenciaForm(forms.ModelForm):
         fields = '__all__'
         widgets = {
             'data_fato': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'historico': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 8,  # aumenta a altura
+            }),
         }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Aplica a classe Bootstrap a todos os campos
         for field in self.fields.values():
-            field.widget.attrs['class'] = 'form-control'
+            if field.widget.__class__ != forms.Textarea:
+                field.widget.attrs['class'] = 'form-control'
+
+        # Define os labels personalizados dos selects
+        self.fields['sexo'].empty_label = "Selecione o sexo"
+        self.fields['faixa_etaria'].empty_label = "Selecione a faixa etária"
+        self.fields['tipo'].empty_label = "Selecione o tipo"
+        self.fields['turno'].empty_label = "Selecione o turno"
+        self.fields['intervalo'].empty_label = "Selecione o intervalo"
+        self.fields['dia_semana'].empty_label = "Selecione o dia da semana"
+        self.fields['local_obito'].empty_label = "Selecione o local do óbito"
+        self.fields['cor_pele'].empty_label = "Selecione a cor de pele"
+        self.fields['situacao_carceraria'].empty_label = "Selecione a situação carcerária"
+        self.fields['causa_fato'].empty_label = "Selecione a causa do fato"
+        self.fields['trafico_posse'].empty_label = "Selecione tráfico ou posse"
+        self.fields['orcrim'].empty_label = "Selecione a ORCRIM"
+        self.fields['meio_empregado'].empty_label = "Selecione o meio empregado"
+        self.fields['cidade'].empty_label = "Selecione a cidade"
+        self.fields['mes'].empty_label = "Selecione o mês"
+        self.fields['opm'].empty_label = "Selecione o OPM"
+        self.fields['ano'].empty_label = "Selecione o Ano"
+
 
 
 class CidadeForm(forms.ModelForm):
@@ -99,7 +127,7 @@ class CausaFatoForm(forms.ModelForm):
 
 class TraficoPosseForm(forms.ModelForm):
     class Meta:
-        model = TráficoPosse
+        model = TraficoPosse
         fields = ['descricao']
 
 

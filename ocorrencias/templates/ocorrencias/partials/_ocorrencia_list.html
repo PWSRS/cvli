@@ -1,0 +1,10 @@
+{% for ocorrencia in ocorrencias %}
+  <tr>
+    <td>{{ ocorrencia.nome }}</td>
+    <td>{{ ocorrencia.data_fato }}</td>
+    <td>{{ ocorrencia.sexo }}</td>
+    <!-- outros campos que quiser -->
+  </tr>
+{% empty %}
+  <tr><td colspan="3">Nenhuma ocorrência encontrada.</td></tr>
+{% endfor %}

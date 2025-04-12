@@ -1,0 +1,21 @@
+<tbody>
+  {% for ocorrencia in ocorrencias %}
+  <tr>
+    <td>{{ ocorrencia.ano }}</td>
+    <td>{{ ocorrencia.nome }}</td>
+    <td>{{ ocorrencia.idade }}</td>
+    <td>{{ ocorrencia.sexo }}</td>
+    <td>{{ ocorrencia.cidade }}</td>
+    <td>{{ ocorrencia.tipo }}</td>
+    <td>
+      <a href="{% url 'ocorrencia_detail' ocorrencia.id %}" class="btn btn-sm btn-info">Ver</a>
+      <a href="{% url 'ocorrencia_edit' ocorrencia.id %}" class="btn btn-sm btn-warning">Editar</a>
+      <a href="{% url 'ocorrencia_delete' ocorrencia.id %}" class="btn btn-sm btn-danger">Excluir</a>
+    </td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="7">Nenhuma ocorrência encontrada.</td>
+  </tr>
+  {% endfor %}
+</tbody>

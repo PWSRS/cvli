@@ -97,7 +97,7 @@ class CausaFato(models.Model):
         return self.descricao
 
 
-class TráficoPosse(models.Model):
+class TraficoPosse(models.Model):  # sem acento
     descricao = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
@@ -162,7 +162,7 @@ class Ocorrencia(models.Model):
     )
     situacao_carceraria = models.ForeignKey(SituacaoCarceraria, on_delete=models.SET_NULL, null=True, blank=True)
     causa_fato = models.ForeignKey(CausaFato, on_delete=models.SET_NULL, null=True, blank=True)
-    trafico_posse = models.ForeignKey(TráficoPosse, on_delete=models.SET_NULL, null=True, blank=True)
+    trafico_posse = models.ForeignKey(TraficoPosse, on_delete=models.SET_NULL, null=True, blank=True)
     orcrim = models.ForeignKey(Orcrim, on_delete=models.SET_NULL, null=True, blank=True)
     coordenadas_geograficas = models.CharField(max_length=100, blank=True, null=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
