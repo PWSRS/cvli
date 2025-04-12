@@ -1,22 +1,25 @@
-{% extends 'base.html' %}
-
-{% block content %}
+{% extends 'base.html' %} {% block content %}
 <div class="container mt-4">
   <h2 class="mb-4">Importar Dados</h2>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }}">
-        {{ message }}
-      </div>
-    {% endfor %}
-  {% endif %}
+  {% if messages %} {% for message in messages %}
+  <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %} {% endif %}
 
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="mb-3">
-      <label for="arquivo" class="form-label">Selecionar arquivo Excel (.xlsx)</label>
-      <input class="form-control" type="file" name="arquivo" id="arquivo" accept=".xlsx" required>
+      <label for="arquivo" class="form-label"
+        >Selecionar arquivo Excel (.xlsx)</label
+      >
+      <input
+        class="form-control"
+        type="file"
+        name="arquivo"
+        id="arquivo"
+        accept=".xlsx"
+        required
+      />
     </div>
     <button class="btn btn-primary" type="submit">Importar</button>
   </form>

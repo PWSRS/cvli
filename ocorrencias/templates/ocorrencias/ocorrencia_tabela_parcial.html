@@ -8,9 +8,21 @@
     <td>{{ ocorrencia.cidade }}</td>
     <td>{{ ocorrencia.tipo }}</td>
     <td>
-      <a href="{% url 'ocorrencia_detail' ocorrencia.id %}" class="btn btn-sm btn-info">Ver</a>
-      <a href="{% url 'ocorrencia_edit' ocorrencia.id %}" class="btn btn-sm btn-warning">Editar</a>
-      <a href="{% url 'ocorrencia_delete' ocorrencia.id %}" class="btn btn-sm btn-danger">Excluir</a>
+      <a
+        href="{% url 'ocorrencia_detail' ocorrencia.id %}"
+        class="btn btn-sm btn-info"
+        >Ver</a
+      >
+      <a
+        href="{% url 'ocorrencia_edit' ocorrencia.id %}"
+        class="btn btn-sm btn-warning"
+        >Editar</a
+      >
+      <a
+        href="{% url 'ocorrencia_delete' ocorrencia.id %}"
+        class="btn btn-sm btn-danger"
+        >Excluir</a
+      >
     </td>
   </tr>
   {% empty %}
