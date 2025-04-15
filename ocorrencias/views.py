@@ -16,6 +16,7 @@ from django.template.loader import render_to_string
 from django.db.models import Q, F
 from django.db.models.functions import TruncMonth
 from django.utils.dateparse import parse_date
+import plotly.graph_objs as go
 
 def register(request):
     if request.method == 'POST':
@@ -356,187 +357,89 @@ class MeioEmpregadoDeleteView(LoginRequiredMixin,DeleteView):
     
 # CRIAÇÃO DE GRÁFICOS
 def dashboard(request):
-    dados_por_mes = Ocorrencia.objects.values('mes__nome').annotate(qtd=Count('id')).order_by('mes__nome')
-    dados_por_sexo = Ocorrencia.objects.values('sexo__nome').annotate(qtd=Count('id'))
-
-    return render(request, 'ocorrencias/dashboard.html', {
-        'dados_mes': list(dados_por_mes),
-        'dados_sexo': list(dados_por_sexo),
-    })
-
-    
-def grafico_ocorrencias_por_mes(request):
-    dados = (
-        Ocorrencia.objects
-        .values('mes__id', 'mes__nome')  # agrupando pelo ID e nome
-        .annotate(total=Count('id'))
-        .order_by('mes__id')  # aqui está a mágica
-    )
-
-    labels = [item['mes__nome'] for item in dados]
-    valores = [item['total'] for item in dados]
-
-    return JsonResponse({
-        'labels': labels,
-        'valores': valores
-    })
-    
-def dados_por_mes(request):
-    dados = Ocorrencia.objects.values('mes').annotate(total=Count('id'))
-    # Aqui ele traz dados como [{'mes': 'Março', 'total': 5}, {'mes': 'Janeiro', 'total': 3}]
-
-    # Ordem correta dos meses
-    ordem_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-
-    # Converter para dicionário
-    dados_dict = {item['mes']: item['total'] for item in dados}
-
-    labels = []
-    valores = []
-
-    for mes in ordem_meses:
-        if mes in dados_dict:
-            labels.append(mes)
-            valores.append(dados_dict[mes])
-
-    return JsonResponse({
-        'labels': labels,
-        'valores': valores
-    })
-    
-    
-def dados_por_tipo(request):
-    dados = Ocorrencia.objects.values('tipo__nome').annotate(total=Count('id'))
-
-    labels = [item['tipo__nome'] for item in dados]
-    valores = [item['total'] for item in dados]
-
-    return JsonResponse({
-        'labels': labels,
-        'valores': valores
-    })
-    
-def dados_por_tipo(request):
-    ocorrencias = Ocorrencia.objects.all()
-
-    # Filtros
-    data_inicio = request.GET.get('data_inicio')
-    data_fim = request.GET.get('data_fim')
-    sexo = request.GET.get('sexo')
-    idade = request.GET.get('idade')
-    tipo = request.GET.get('tipo')
-
-    if data_inicio:
-        ocorrencias = ocorrencias.filter(data_fato__gte=parse_date(data_inicio))
-    if data_fim:
-        ocorrencias = ocorrencias.filter(data_fato__lte=parse_date(data_fim))
-    if sexo:
-        ocorrencias = ocorrencias.filter(sexo__nome=sexo)
-    if tipo:
-        ocorrencias = ocorrencias.filter(tipo_id=tipo)
-    if idade:
-        faixa = idade.split('-')
-        if faixa[-1] == '+':
-            ocorrencias = ocorrencias.filter(idade__gte=int(faixa[0]))
-        else:
-            ocorrencias = ocorrencias.filter(idade__gte=int(faixa[0]), idade__lte=int(faixa[1]))
-
-    # Gráfico por mês
-    meses = (
-        ocorrencias
-        .annotate(mes_truncado=TruncMonth('data'))
-        .values('mes_truncado')
-        .annotate(total=Count('id'))
-        .order_by('mes_truncado')
-    )
-    meses_labels = [m['mes'].strftime('%b/%Y') for m in meses]
-    meses_data = [m['total'] for m in meses]
-
-    # Gráfico por sexo
-    sexo_qs = (
-        ocorrencias
-        .values('sexo__nome')
-        .annotate(total=Count('id'))
-        .order_by('sexo__nome')
-    )
-    sexo_labels = [s['sexo__nome'] for s in sexo_qs]
-    sexo_data = [s['total'] for s in sexo_qs]
-
-    # Gráfico por idade
-    faixas = {
-        '0-18': (0, 18),
-        '19-30': (19, 30),
-        '31-45': (31, 45),
-        '46-60': (46, 60),
-        '61+': (61, 150),
+    from .models import Sexo, Tipo, Cidade
+    context = {
+        'sexos': Sexo.objects.all(),
+        'tipos': Tipo.objects.all(),
+        'cidades': Cidade.objects.all(),
     }
-    idade_labels = []
-    idade_data = []
-    for faixa_label, (min_idade, max_idade) in faixas.items():
-        count = ocorrencias.filter(idade__gte=min_idade, idade__lte=max_idade).count()
-        idade_labels.append(faixa_label)
-        idade_data.append(count)
+    return render(request, 'ocorrencias/dashboard.html', context)
 
-    # Gráfico por cidade
-    cidade_qs = (
-        ocorrencias
-        .values('cidade__nome')
-        .annotate(total=Count('id'))
-        .order_by('-total')[:10]
-    )
-    cidade_labels = [c['cidade__nome'] for c in cidade_qs]
-    cidade_data = [c['total'] for c in cidade_qs]
 
-    return JsonResponse({
-        'meses': {'labels': meses_labels, 'data': meses_data},
-        'sexo': {'labels': sexo_labels, 'data': sexo_data},
-        'idade': {'labels': idade_labels, 'data': idade_data},
-        'cidade': {'labels': cidade_labels, 'data': cidade_data},
-    })
-    
 def dashboard_dados(request):
-    data_inicio = request.GET.get('data_inicio')
-    data_fim = request.GET.get('data_fim')
-    sexo = request.GET.get('sexo')
-    tipo = request.GET.get('tipo')
+    # Filtros recebidos via GET
+    data_inicio = request.GET.get("data_inicio")
+    data_fim = request.GET.get("data_fim")
+    sexo = request.GET.get("sexo")
+    tipo = request.GET.get("tipo")
+    cidade = request.GET.get("cidade")
+    faixa_idade = request.GET.get("idade")
 
     ocorrencias = Ocorrencia.objects.all()
 
+    # Filtros aplicados
     if data_inicio:
-        ocorrencias = ocorrencias.filter(data__gte=data_inicio)
+        ocorrencias = ocorrencias.filter(data_fato__gte=data_inicio)
     if data_fim:
-        ocorrencias = ocorrencias.filter(data__lte=data_fim)
+        ocorrencias = ocorrencias.filter(data_fato__lte=data_fim)
     if sexo:
         ocorrencias = ocorrencias.filter(sexo_id=sexo)
     if tipo:
         ocorrencias = ocorrencias.filter(tipo_id=tipo)
+    if cidade:
+        ocorrencias = ocorrencias.filter(cidade_id=cidade)
+    if faixa_idade:
+        try:
+            faixa = faixa_idade.split("-")
+            if faixa[1] == "+":
+                ocorrencias = ocorrencias.filter(idade__gte=int(faixa[0]))
+            else:
+                ocorrencias = ocorrencias.filter(idade__gte=int(faixa[0]), idade__lte=int(faixa[1]))
+        except:
+            pass
 
-    por_mes = (
-        ocorrencias
-        .annotate(mes=TruncMonth('data'))
-        .values('mes')
-        .annotate(total=Count('id'))
-        .order_by('mes')
-    )
+    # Gráfico por mês
+    mes_count = ocorrencias.values('mes').annotate(total=Count('id')).order_by('mes')
+    mes_labels = [item['mes'] for item in mes_count]
+    mes_dados = [item['total'] for item in mes_count]
 
-    por_sexo = (
-        ocorrencias
-        .values('sexo__nome')
-        .annotate(total=Count('id'))
-        .order_by('sexo__nome')
-    )
+    # Gráfico por sexo
+    sexo_count = ocorrencias.values('sexo__nome').annotate(total=Count('id'))
+    sexo_labels = [item['sexo__nome'] for item in sexo_count]
+    sexo_dados = [item['total'] for item in sexo_count]
+
+    # Gráfico por faixa etária
+    idade_faixas = {
+        "0-18": 0,
+        "19-30": 0,
+        "31-45": 0,
+        "46-60": 0,
+        "61-70": 0,
+        "71+": 0,
+    }
+    for o in ocorrencias:
+        idade = o.idade or 0
+        if idade <= 18:
+            idade_faixas["0-18"] += 1
+        elif idade <= 30:
+            idade_faixas["19-30"] += 1
+        elif idade <= 45:
+            idade_faixas["31-45"] += 1
+        elif idade <= 60:
+            idade_faixas["46-60"] += 1
+        elif idade <= 70:
+            idade_faixas["61-70"] += 1
+        else:
+            idade_faixas["71+"] += 1
+
+    # Gráfico por cidade
+    cidade_count = ocorrencias.values('cidade__nome').annotate(total=Count('id')).order_by('-total')[:10]
+    cidade_labels = [item['cidade__nome'] for item in cidade_count]
+    cidade_dados = [item['total'] for item in cidade_count]
 
     return JsonResponse({
-        'por_mes': list(por_mes),
-        'por_sexo': list(por_sexo),
-    })
-
-
-def dashboard(request):
-    sexos = Sexo.objects.all()
-    tipos = Tipo.objects.all()
-    return render(request, 'ocorrencias/dashboard.html', {
-        'sexos': sexos,
-        'tipos': tipos
+        "mes": {"labels": mes_labels, "dados": mes_dados},
+        "sexo": {"labels": sexo_labels, "dados": sexo_dados},
+        "idade": {"labels": list(idade_faixas.keys()), "dados": list(idade_faixas.values())},
+        "cidade": {"labels": cidade_labels, "dados": cidade_dados},
     })

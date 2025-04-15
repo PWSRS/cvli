@@ -1,103 +1,186 @@
-{% extends 'base.html' %} {% load static %} {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-4">Dashboard Interativo</h2>
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dashboard de Ocorrências</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      canvas {
+        max-height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-4">
+      <h2 class="mb-4">Dashboard de Ocorrências</h2>
 
-  <form id="filtros" class="row g-3 mb-4">
-    <div class="col-md-3">
-      <label for="data_inicio" class="form-label">Data Início</label>
-      <input
-        type="date"
-        class="form-control"
-        id="data_inicio"
-        name="data_inicio"
-      />
+      <!-- Filtros -->
+      <form id="filtros" class="row g-3">
+        <div class="col-md-2">
+          <label for="data_inicio" class="form-label">Data Início</label>
+          <input
+            type="date"
+            id="data_inicio"
+            name="data_inicio"
+            class="form-control"
+          />
+        </div>
+        <div class="col-md-2">
+          <label for="data_fim" class="form-label">Data Fim</label>
+          <input
+            type="date"
+            id="data_fim"
+            name="data_fim"
+            class="form-control"
+          />
+        </div>
+        <div class="col-md-2">
+          <label for="sexo" class="form-label">Sexo</label>
+          <select id="sexo" name="sexo" class="form-select">
+            <option value="">Todos</option>
+            {% for s in sexos %}
+            <option value="{{ s.id }}">{{ s.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="tipo" class="form-label">Tipo</label>
+          <select id="tipo" name="tipo" class="form-select">
+            <option value="">Todos</option>
+            {% for t in tipos %}
+            <option value="{{ t.id }}">{{ t.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="cidade" class="form-label">Cidade</label>
+          <select id="cidade" name="cidade" class="form-select">
+            <option value="">Todas</option>
+            {% for c in cidades %}
+            <option value="{{ c.id }}">{{ c.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="idade" class="form-label">Faixa Etária</label>
+          <select id="idade" name="idade" class="form-select">
+            <option value="">Todas</option>
+            <option value="0-18">0-18</option>
+            <option value="19-30">19-30</option>
+            <option value="31-45">31-45</option>
+            <option value="46-60">46-60</option>
+            <option value="61-70">46-60</option>
+            <option value="71-+">61+</option>
+          </select>
+        </div>
+        <div class="col-md-12 text-end">
+          <button type="submit" class="btn btn-primary mt-2">Atualizar</button>
+        </div>
+      </form>
+
+      <hr class="my-4" />
+
+      <!-- Gráficos -->
+      <div class="row">
+        <div class="col-md-6 mb-4">
+          <h5>Ocorrências por Mês</h5>
+          <canvas id="graficoMes"></canvas>
+        </div>
+        <div class="col-md-6 mb-4">
+          <h5>Ocorrências por Sexo</h5>
+          <canvas id="graficoSexo"></canvas>
+        </div>
+        <div class="col-md-6 mb-4">
+          <h5>Ocorrências por Faixa Etária</h5>
+          <canvas id="graficoIdade"></canvas>
+        </div>
+        <div class="col-md-6 mb-4">
+          <h5>Top 10 Cidades</h5>
+          <canvas id="graficoCidade"></canvas>
+        </div>
+      </div>
     </div>
-    <div class="col-md-3">
-      <label for="data_fim" class="form-label">Data Fim</label>
-      <input type="date" class="form-control" id="data_fim" name="data_fim" />
-    </div>
-    <div class="col-md-3">
-      <label for="sexo" class="form-label">Sexo</label>
-      <select id="sexo" name="sexo" class="form-select">
-        <option value="">Todos</option>
-        {% for s in sexos %}
-        <option value="{{ s.id }}">{{ s.nome }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-3">
-      <label for="tipo" class="form-label">Tipo</label>
-      <select id="tipo" name="tipo" class="form-select">
-        <option value="">Todos</option>
-        {% for t in tipos %}
-        <option value="{{ t.id }}">{{ t.nome }}</option>
-        {% endfor %}
-      </select>
-    </div>
-  </form>
 
-  <div class="row">
-    <div class="col-md-6">
-      <canvas id="graficoMes"></canvas>
-    </div>
-    <div class="col-md-6">
-      <canvas id="graficoSexo"></canvas>
-    </div>
-  </div>
-</div>
+    <script>
+      let graficoMes, graficoSexo, graficoIdade, graficoCidade;
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  let graficoMes, graficoSexo;
-
-  function carregarGraficos() {
-    const formData = new FormData(document.getElementById("filtros"));
-    const params = new URLSearchParams(formData);
-
-    fetch(`/ocorrencias/dashboard/dados/?${params.toString()}`)
-      .then((response) => response.json())
-      .then((data) => {
-        const meses = data.por_mes.map((item) => item.mes.slice(0, 7));
-        const totaisMes = data.por_mes.map((item) => item.total);
-
-        const sexos = data.por_sexo.map((item) => item.sexo__nome);
-        const totaisSexo = data.por_sexo.map((item) => item.total);
-
-        if (graficoMes) graficoMes.destroy();
-        graficoMes = new Chart(document.getElementById("graficoMes"), {
-          type: "bar",
+      function criarOuAtualizarGrafico(ctx, tipo, dados, cor = "indigo") {
+        if (ctx.chart) ctx.chart.destroy();
+        ctx.chart = new Chart(ctx, {
+          type: tipo,
           data: {
-            labels: meses,
+            labels: dados.labels,
             datasets: [
               {
-                label: "Ocorrências por Mês",
-                data: totaisMes,
-                backgroundColor: "#3b82f6",
+                label: "Total",
+                data: dados.dados,
+                backgroundColor: cor,
+                borderColor: cor,
+                borderWidth: 1,
               },
             ],
           },
-        });
-
-        if (graficoSexo) graficoSexo.destroy();
-        graficoSexo = new Chart(document.getElementById("graficoSexo"), {
-          type: "pie",
-          data: {
-            labels: sexos,
-            datasets: [
-              {
-                label: "Ocorrências por Sexo",
-                data: totaisSexo,
-                backgroundColor: ["#10b981", "#f59e0b", "#ef4444"],
-              },
-            ],
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+            },
           },
         });
-      });
-  }
+      }
 
-  document
-    .getElementById("filtros")
-    .addEventListener("change", carregarGraficos);
-  window.onload = carregarGraficos;
-</script>
+      function atualizarGraficos() {
+        const params = new URLSearchParams(
+          new FormData(document.getElementById("filtros"))
+        );
+
+        fetch("{% url 'dashboard_dados' %}?" + params)
+          .then((response) => response.json())
+          .then((data) => {
+            criarOuAtualizarGrafico(
+              document.getElementById("graficoMes"),
+              "bar",
+              data.mes,
+              "steelblue"
+            );
+            criarOuAtualizarGrafico(
+              document.getElementById("graficoSexo"),
+              "pie",
+              data.sexo,
+              "salmon"
+            );
+            criarOuAtualizarGrafico(
+              document.getElementById("graficoIdade"),
+              "bar",
+              data.idade,
+              "orange"
+            );
+            criarOuAtualizarGrafico(
+              document.getElementById("graficoCidade"),
+              "bar",
+              data.cidade,
+              "seagreen"
+            );
+          });
+      }
+
+      document
+        .getElementById("filtros")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          atualizarGraficos();
+        });
+
+      // Inicial
+      atualizarGraficos();
+    </script>
+  </body>
+</html>
 {% endblock %}

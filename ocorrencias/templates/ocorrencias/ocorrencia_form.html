@@ -1,4 +1,6 @@
-{% extends 'base.html' %} {% load static %} {% block content %}
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
 <div class="container mt-4">
   <h2>{{ form.instance.pk|yesno:"Editar Ocorrência,Nova Ocorrência" }}</h2>
   <form method="post">

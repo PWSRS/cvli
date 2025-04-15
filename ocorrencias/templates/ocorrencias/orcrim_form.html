@@ -1,4 +1,5 @@
-{% extends 'base.html' %} {% block content %}
+{% extends 'base.html' %}
+{% block content %}
 <h2>{% if form.instance.pk %}Editar{% else %}Nova{% endif %} ORCRIM</h2>
 <form method="post">
   {% csrf_token %} {{ form.as_p }}

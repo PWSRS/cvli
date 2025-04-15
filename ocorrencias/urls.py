@@ -46,15 +46,17 @@ urlpatterns = [
     path('importar/', views.ImportarDadosView.as_view(), name='importar_dados'),
     path('exportar/', views.ExportarDadosView.as_view(), name='exportar_dados'),
 
-    # Dashboard e AJAX
+    # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
-    path('dashboard/dados/', views.dados_por_tipo, name='dados_por_tipo'),
     path('dashboard/dados/', views.dashboard_dados, name='dashboard_dados'),
-    path('dashboard/dados-tipo/', views.dados_por_tipo, name='dados_por_tipo'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    #path('dashboard/dados/', views.dados_por_tipo, name='dados_por_tipo'),
+    path('dashboard/dados/', views.dashboard_dados, name='dashboard_dados'),
+    #path('dashboard/dados-tipo/', views.dados_por_tipo, name='dados_por_tipo'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('dashboard/dados/', views.dashboard_dados, name='dashboard_dados'),
     path('ocorrencias/ajax/', views.OcorrenciaAjaxListView.as_view(), name='ocorrencia-ajax-list'),
-
+    
     # Autenticação
     path('accounts/login/', auth_views.LoginView.as_view(), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
